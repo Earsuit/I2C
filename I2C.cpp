@@ -193,6 +193,11 @@ uint8_t TWI::readBuffer(){
     return 0;
 }
 
+/*
+    get the rxBuffer array
+
+    @return the rxBuffer array pointer
+*/
 uint8_t* TWI::getBuffer(){
     return rxBuffer;
 }
