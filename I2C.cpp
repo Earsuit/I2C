@@ -169,6 +169,7 @@ void TWI::requestFrom(uint8_t slaveAddress, uint8_t num, bool stop, bool repeatS
         rxBuffer[n] = TWDR;
     }
 
+    //last byte, no TWEA (generate NACK)
     TWCR = (_BV(TWINT)) | (_BV(TWEN));
     while(!(TWCR & (_BV(TWINT))));
     if((TWSR & STATUS_CODE_MASK) != MR_DATA_NACK)
@@ -190,6 +191,10 @@ uint8_t TWI::readBuffer(){
         return rxBuffer[rxBufferIndex++];
     }
     return 0;
+}
+
+uint8_t* TWI::getBuffer(){
+    return rxBuffer;
 }
 
 /*
@@ -297,7 +302,7 @@ void TWI::receive(){
             status = TWSR & STATUS_CODE_MASK;
         }
 
-        //received a STOP signal
+        //if received a STOP signal
         if(status == SR_STOP){
             rxBufferIndex = 0;
         }else{
