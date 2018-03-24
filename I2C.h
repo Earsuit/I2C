@@ -9,7 +9,7 @@
 
     Created by Yudi Ren, Feb 1, 2018.
     renyudicn@outlook.com
-    Version 0.2
+    Version 0.1
 */
 
 #ifndef I2C_H_
@@ -47,9 +47,6 @@
 #define RESPOND_GC 0x01
 #define NOT_RESPOND_GC 0x00
 
-#define MILLI_SECOND 1000
-#define OUTPUT_COMPARE_COUNTER_0 0x0F  //1ms
-
 namespace TWI{
     //unit: khz, the max freq for ATMEL328p is 400khz
     void I2CSetup(uint8_t selfAddress,int i2cFreq=100,bool slave = false,bool generalCall = false, bool interrupt = false);
@@ -58,14 +55,11 @@ namespace TWI{
     void stopTrans();
     void error(uint8_t type, uint8_t info = 0x00);
     void requestFrom(uint8_t deviceAd, uint8_t num, bool stop, bool repeatStart = true);
-    void requestFrom(uint8_t deviceAd, uint8_t num, bool stop, int & outSideBufferIndex, uint8_t* outSideBuffer, bool repeatStart = true);
     uint8_t readBuffer();
     void setFreq(int freq);  //unit: khz
     void receive();
     void interrupt(bool on);
     uint8_t* getBuffer();
-    void waitingForComplete();
-    void timeoutSetup();
 }
 
 #endif
