@@ -1,21 +1,12 @@
 /*
     I2C.cpp - a free library for I2C communication of Arduino Nano or Mega. I haven't
     tested it on other boards but any one uses ATmega48A/PA/88A/PA/168A/PA/328/P
-    or Atmel ATmega640/V-1280/V-1281/V-2560/V-2561/V chip should work. Please note
-    that this library needs the 8-bit Timer/Counter0.
+    or Atmel ATmega640/V-1280/V-1281/V-2560/V-2561/V chip should work.
 
     Please refer to https://longnight975551865.wordpress.com/2018/02/11/write-your-own-i%c2%b2c-library/ for more information.
 
     Feedback and contribution is welcome!
 
-    Version 1.1
-    * added timeout function which ensures the program won't hang up. Please note
-      the timeout() function uses the 8-bit Timer/Counter0.
-    * added a new requestFrom() that overloaded the previous one. The new requestFrom()
-      takes a user-defined array and its index and stores data in the specified location
-      of this array.
-
-    -------------------------------------
     Created by Yudi Ren, Feb 1, 2018.
     renyudicn@outlook.com
     Version 1.0
@@ -25,10 +16,9 @@
 #include <Arduino.h>
 
 //buffer
-volatile uint8_t rxBuffer[RX_BUFFER_SIZE];
-volatile uint8_t rxBufferIndex;
-volatile uint8_t rxBufferLength;
-volatile bool isTimeout = false;
+uint8_t rxBuffer[RX_BUFFER_SIZE];
+uint8_t rxBufferIndex;
+uint8_t rxBufferLength;
 
 /*
     Initialise the I2C interface
@@ -62,8 +52,6 @@ void TWI::I2CSetup(uint8_t selfAddress, int i2cFreq, bool slave, bool generalCal
         TWCR |= _BV(TWIE);
         sei();
     }
-
-    timeoutSetup();
 
     rxBufferIndex = 0;
     rxBufferLength = 0;
@@ -101,7 +89,7 @@ void TWI::interrupt(bool on){
 bool TWI::startTrans(uint8_t address, uint8_t type, bool repeatStart){
     //send start condition
     TWCR = (_BV(TWINT)) | (_BV(TWSTA)) | (_BV(TWEN));
-    waitingForComplete();
+    while(!(TWCR & (_BV(TWINT))));
     uint8_t status = TWSR & STATUS_CODE_MASK;
     if(!repeatStart && status != START){
         error(START);
@@ -116,7 +104,7 @@ bool TWI::startTrans(uint8_t address, uint8_t type, bool repeatStart){
         case WRITE:
             TWDR = (address<<1) | WRITE;
             TWCR = (_BV(TWINT)) | (_BV(TWEN));
-            waitingForComplete();
+            while (!(TWCR & (_BV(TWINT))));
             if((TWSR & STATUS_CODE_MASK) != MT_SLA_W_ACK){
                 error(MT_SLA_W_ACK);
                 return false;
@@ -125,7 +113,7 @@ bool TWI::startTrans(uint8_t address, uint8_t type, bool repeatStart){
         case READ:
             TWDR = (address<<1) | READ;
             TWCR = (_BV(TWINT)) | (_BV(TWEN));
-            waitingForComplete();
+            while (!(TWCR & (_BV(TWINT))));
             if((TWSR & STATUS_CODE_MASK) != MR_SLA_R_ACK){
                 error(MR_SLA_R_ACK);
                 return false;
@@ -145,7 +133,7 @@ bool TWI::startTrans(uint8_t address, uint8_t type, bool repeatStart){
 void TWI::write(uint8_t data, bool stop){
     TWDR = data;
     TWCR = (_BV(TWINT)) | (_BV(TWEN));
-    waitingForComplete();
+    while(!(TWCR & (_BV(TWINT))));
     if((TWSR & STATUS_CODE_MASK) != MT_DATA_ACK)
         error(MT_DATA_ACK);
 
@@ -177,57 +165,18 @@ void TWI::requestFrom(uint8_t slaveAddress, uint8_t num, bool stop, bool repeatS
 
     for(uint8_t n=0;n<num-1;n++){
         TWCR = (_BV(TWEA)) | (_BV(TWINT)) | (_BV(TWEN));
-        waitingForComplete();
+        while(!(TWCR & (_BV(TWINT))));
         if((TWSR & STATUS_CODE_MASK) != MR_DATA_ACK)
-            error(MR_DATA_ACK);
+             error(MR_DATA_ACK);
         rxBuffer[n] = TWDR;
     }
 
     //last byte, no TWEA (generate NACK)
     TWCR = (_BV(TWINT)) | (_BV(TWEN));
-    waitingForComplete();
+    while(!(TWCR & (_BV(TWINT))));
     if((TWSR & STATUS_CODE_MASK) != MR_DATA_NACK)
-        error(MR_DATA_NACK);
+         error(MR_DATA_NACK);
     rxBuffer[num-1] = TWDR;
-
-    if(stop)
-        stopTrans();
-}
-
-/*
-    Master request data from the slave. It will send a START signal so you need
-    to specify whether it's a repeat start. You can store the data in a user-defined buffer and specify the
-    the index. Note this will modify the value of the index.
-
-    @param slaveAddress: the slave address
-    @param num: number of bytes requested from the slave, it should be less than
-                RX_BUFFER_SIZE
-    @param stop: does it send a STOP signal
-    @param repeatStart: is this a repeat start
-    @param outSideBuffer: save the data to a user-defined buffer array
-    @param outSideBufferIndex: store data from this index. This will modify the original variable
-*/
-void TWI::requestFrom(uint8_t slaveAddress, uint8_t num, bool stop, int & outSideBufferIndex, uint8_t* outSideBuffer, bool repeatStart){
-    //initialise the buffer
-    rxBufferLength = num;
-    rxBufferIndex = 0;
-
-    startTrans(slaveAddress,READ,repeatStart);
-
-    for(uint8_t n=0;n<num-1;n++){
-        TWCR = (_BV(TWEA)) | (_BV(TWINT)) | (_BV(TWEN));
-        waitingForComplete();
-        if((TWSR & STATUS_CODE_MASK) != MR_DATA_ACK)
-            error(MR_DATA_ACK);
-        outSideBuffer[outSideBufferIndex++] = TWDR;
-    }
-
-    //last byte, no TWEA (generate NACK)
-    TWCR = (_BV(TWINT)) | (_BV(TWEN));
-    waitingForComplete();
-    if((TWSR & STATUS_CODE_MASK) != MR_DATA_NACK)
-        error(MR_DATA_NACK);
-    outSideBuffer[outSideBufferIndex++] = TWDR;
 
     if(stop)
         stopTrans();
@@ -260,7 +209,7 @@ uint8_t* TWI::getBuffer(){
 */
 void TWI::stopTrans(){
     TWCR = (_BV(TWINT))|(_BV(TWEN)) | (_BV(TWSTO));
-    waitingForComplete();
+    while(!(TWCR & (_BV(TWSTO))));
 }
 
 /*
@@ -349,14 +298,14 @@ void TWI::receive(){
         //initialise the buffer
         rxBufferIndex = 0;
         rxBufferLength = 0;
-        waitingForComplete();
+        while(!(TWCR & (_BV(TWINT))));
 
         status = TWSR & STATUS_CODE_MASK;
         while(status == SR_PRE_AD_DATA_ACK || status == SR_PRE_GC_DATA_ACK){
             rxBuffer[rxBufferIndex++] = TWDR;
             rxBufferLength++;
             TWCR = (_BV(TWINT)) | (_BV(TWEN)) | (_BV(TWEA));
-            waitingForComplete();
+            while(!(TWCR & (_BV(TWINT))));
             status = TWSR & STATUS_CODE_MASK;
         }
 
@@ -369,37 +318,4 @@ void TWI::receive(){
     }
 
     TWCR = backup;
-}
-
-/*
-    A function to wait for the transmission complete.
-*/
-void TWI::waitingForComplete(){
-    TCNT0 = 0x00;  //initialize the counter
-    TIMSK0 = _BV(OCIE0A);  //enable the timeout interrupt
-    while(!(TWCR & (_BV(TWINT)))){
-        if(isTimeout){
-            TIMSK0 = 0x00;
-            break;
-        }
-    }
-    isTimeout = false;
-}
-
-/*
-    Set timeout. Change the value of the OUTPUT_COMPARE_COUNTER_0 to modify the
-    timeout time. The default is 1ms. It uses the 8-bit Timer/Counter0.
-*/
-void TWI::timeoutSetup(){
-    cli();  //disable the global interrupt
-    TCCR0A = _BV(WGM01);  //CTC mode
-    TCCR0B = (_BV(CS02)) | (_BV(CS00)); //perscaler = 1024
-    OCR0A = OUTPUT_COMPARE_COUNTER_0;
-    //we don't enable this interrupt now
-    sei(); //enable global interrupt
-}
-
-//timeout interrupt
-ISR(TIMER0_COMPA_vect){
-    isTimeout = true;
 }
