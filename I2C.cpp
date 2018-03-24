@@ -9,7 +9,7 @@
 
     Created by Yudi Ren, Feb 1, 2018.
     renyudicn@outlook.com
-    Version 0.1
+    Version 1.0
 */
 
 #include "I2C.h"
