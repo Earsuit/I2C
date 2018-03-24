@@ -5,13 +5,15 @@ Please refer to https://longnight975551865.wordpress.com/2018/02/11/write-your-o
 
 Feedback and contribution is welcome!
 
-Version 0.2
+Version 1.1
 * added timeout function which ensures the program won't hang up. Please note
   the timeout() function uses the 8-bit Timer/Counter0.
 * added a new requestFrom() that overloaded the previous one. The new requestFrom() takes a user-defined array and its index and stores data in the specified location of this array.
 
 -------------------------------------
 Created by Yudi Ren, Feb 1, 2018.
+
 renyudicn@outlook.com
-Version 0.1
+
+Version 1.0
 
