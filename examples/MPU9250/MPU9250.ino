@@ -12,7 +12,7 @@
 */
 #include <math.h>
 #include <I2C.h>
- 
+
 //MPU9250
 #define MPU9250_AD 0x68
 #define FIFO_EN_AD 0x23
