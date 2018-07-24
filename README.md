@@ -1,5 +1,7 @@
 # I2C
-I2C.cpp - A free library for I2C communication of Arduino Nano or Mega. I haven't tested it on other boards but any one uses ATmega48A/PA/88A/PA/168A/PA/328/P or Atmel ATmega640/V-1280/V-1281/V-2560/V-2561/V chip should work. Please note that this library needs the 8-bit Timer/Counter0. Please note that the delay() may block this library.
+I2C.cpp - A free library for I2C communication of Arduino Nano or Mega. This library mimics the functions of the official Wire library, but provides some advanced features, see version 1.1 description below.
+
+I haven't tested it on other boards but any one uses ATmega48A/PA/88A/PA/168A/PA/328/P or Atmel ATmega640/V-1280/V-1281/V-2560/V-2561/V chip should work. Please note that this library needs the 8-bit Timer/Counter0. Please note that the delay() may block this library. 
 
 Please refer to https://longnight975551865.wordpress.com/2018/02/11/write-your-own-i%c2%b2c-library/ for more information.
 
