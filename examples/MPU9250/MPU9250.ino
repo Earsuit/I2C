@@ -1,5 +1,5 @@
 /*
-    This is an example code using the I2C library to get the raw data from the MPU9250.
+    This is an example code using the I2C library to get the raw data from the MPU9250 or MPU6050.
 
     Please refer to https://longnight975551865.wordpress.com/2018/02/20/how-to-read-data-from-mpu9250/
     for detailed information.
@@ -76,7 +76,6 @@ void setup() {
     Serial.begin(115200);
     I2CSetup(SELF_AD,I2C_FREQ);
     MPU9250Setup();
-    delay(100);
     timerInterruptSetup();
 }
 
@@ -93,20 +92,13 @@ void loop(){
         Serial.print(" ACCELY: ");
         Serial.print(accelY/ACCEL_SENS);
         Serial.print(" ACCELZ: ");
-        Serial.print(accelZ/ACCEL_SENS);
-        Serial.print(" MAGNEX: ");
-        Serial.print(magneX*asax*SCALE);
-        Serial.print(" MAGNEY: ");
-        Serial.print(magneY*asay*SCALE);
-        Serial.print(" MAGNEZ: ");
-        Serial.println(magneZ*asaz*SCALE);
+        Serial.println(accelZ/ACCEL_SENS);
         updated = false;
     }
 }
 
 ISR(TIMER1_COMPA_vect){
     updateGyroReading();
-    readMagnetometer();
     updated = true;
 }
 
@@ -132,55 +124,6 @@ void MPU9250Setup(){
     startTrans(MPU9250_AD);
     write(CONFIG_AD);
     write(0x05,true);
-
-    /*
-        disable the I2C Master I/F module; pins ES_DA and ES_SCL are isolated
-        from pins SDA/SDI and SCL/ SCLK.
-    */
-    startTrans(MPU9250_AD);
-    write(USER_CTRL_AD);
-    write(0x00,true);
-
-    /*
-        When asserted, the i2c_master interface pins(ES_CL and ES_DA) will go
-        into ‘bypass mode’ when the i2c master interface is disabled.
-    */
-    startTrans(MPU9250_AD);
-    write(INT_BYPASS_CONFIG_AD);
-    write(0x02,true);
-
-    // setup the Magnetometer to fuse ROM access mode to get the Sensitivity
-    // Adjustment values and 16-bit output
-    startTrans(MAG_AD);
-    write(CNTL1_AD);
-    write(0x1F,true);
-
-    //wait for the mode changes
-    delay(100);
-
-    //read the Sensitivit Adjustment values
-    startTrans(MAG_AD);
-    write(ASAX_AD);
-    requestFrom(MAG_AD,3,true);
-    asax = (readBuffer()-128)*0.5/128+1;
-    asay = (readBuffer()-128)*0.5/128+1;
-    asaz = (readBuffer()-128)*0.5/128+1;
-
-    //reset the Magnetometer to power down mode
-    startTrans(MAG_AD);
-    write(CNTL1_AD);
-    write(0x00,true);
-
-    //wait for the mode changes
-    delay(100);
-
-    //set the Magnetometer to continuous mode 2 and 16-bit output
-    startTrans(MAG_AD);
-    write(CNTL1_AD);
-    write(0x16,true);
-
-    //wait for the mode changes
-    delay(100);
 }
 
 void updateGyroReading(){
@@ -199,23 +142,6 @@ void updateGyroReading(){
     gyroX = (readBuffer()<<8) | readBuffer();
     gyroY = (readBuffer()<<8) | readBuffer();
     gyroZ = (readBuffer()<<8) | readBuffer();
-}
-
-void readMagnetometer(){
-    startTrans(MAG_AD);
-    write(STATUS_1_AD);
-    requestFrom(MAG_AD,1,true);     //pull the DRDY bit
-    if((readBuffer() & DATA_READY) == DATA_READY){
-        startTrans(MAG_AD);
-        write(HXL_AD);
-        requestFrom(MAG_AD,7,true);
-        byte* buffer = getBuffer();
-        if(!(buffer[6] & MAGIC_OVERFLOW)){  //check whether the magnetic sensor is overflown
-          magneX = buffer[0] | (buffer[1]<<8);
-          magneY = buffer[2] | (buffer[3]<<8);
-          magneZ = buffer[4] | (buffer[5]<<8);
-        }
-    }
 }
 
 void timerInterruptSetup(){
