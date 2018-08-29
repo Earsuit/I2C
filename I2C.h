@@ -10,6 +10,9 @@
 
     Feedback and contribution is welcome!
 
+    Version 1.2
+    * add a marco for timeout, so the user can set it to false to disable the timeout
+
     Version 1.1
     * added timeout function which ensures the program won't hang up. Please note
       the timeout() function uses the 8-bit Timer/Counter0.
@@ -58,6 +61,7 @@
 #define RESPOND_GC 0x01
 #define NOT_RESPOND_GC 0x00
 
+#define TIMEOUT false
 #define OUTPUT_COMPARE_COUNTER_0 0x3D09  // 16MHz/1024
 #define TIMEOUT_PERIOD 0.001  //1ms
 

@@ -10,6 +10,9 @@
 
     Feedback and contribution is welcome!
 
+    Version 1.2
+    * add a marco for timeout, so the user can set it to false to disable the timeout
+
     Version 1.1
     * added timeout function which ensures the program won't hang up. Please note
       the timeout() function uses the 8-bit Timer/Counter0.
@@ -65,8 +68,10 @@ void TWI::I2CSetup(uint8_t selfAddress, int i2cFreq, bool slave, bool generalCal
         sei();
     }
 
+    #if TIMEOUT
     timeoutSetup();
-
+    #endif
+    
     rxBufferIndex = 0;
     rxBufferLength = 0;
 }
@@ -103,7 +108,11 @@ void TWI::interrupt(bool on){
 bool TWI::startTrans(uint8_t address, uint8_t type, bool repeatStart){
     //send start condition
     TWCR = (_BV(TWINT)) | (_BV(TWSTA)) | (_BV(TWEN));
+    #if TIMEOUT
     waitingForComplete();
+    #else
+    while (!(TWCR & (_BV(TWINT))));
+    #endif
     uint8_t status = TWSR & STATUS_CODE_MASK;
     if(!repeatStart && status != START){
         error(START);
@@ -118,7 +127,11 @@ bool TWI::startTrans(uint8_t address, uint8_t type, bool repeatStart){
         case WRITE:
             TWDR = (address<<1) | WRITE;
             TWCR = (_BV(TWINT)) | (_BV(TWEN));
+            #if TIMEOUT
             waitingForComplete();
+            #else
+            while (!(TWCR & (_BV(TWINT))));
+            #endif
             if((TWSR & STATUS_CODE_MASK) != MT_SLA_W_ACK){
                 error(MT_SLA_W_ACK);
                 return false;
@@ -127,7 +140,11 @@ bool TWI::startTrans(uint8_t address, uint8_t type, bool repeatStart){
         case READ:
             TWDR = (address<<1) | READ;
             TWCR = (_BV(TWINT)) | (_BV(TWEN));
+            #if TIMEOUT
             waitingForComplete();
+            #else
+            while (!(TWCR & (_BV(TWINT))));
+            #endif
             if((TWSR & STATUS_CODE_MASK) != MR_SLA_R_ACK){
                 error(MR_SLA_R_ACK);
                 return false;
@@ -147,7 +164,11 @@ bool TWI::startTrans(uint8_t address, uint8_t type, bool repeatStart){
 void TWI::write(uint8_t data, bool stop){
     TWDR = data;
     TWCR = (_BV(TWINT)) | (_BV(TWEN));
+    #if TIMEOUT
     waitingForComplete();
+    #else
+    while (!(TWCR & (_BV(TWINT))));
+    #endif
     if((TWSR & STATUS_CODE_MASK) != MT_DATA_ACK)
         error(MT_DATA_ACK);
 
@@ -179,7 +200,11 @@ void TWI::requestFrom(uint8_t slaveAddress, uint8_t num, bool stop, bool repeatS
 
     for(uint8_t n=0;n<num-1;n++){
         TWCR = (_BV(TWEA)) | (_BV(TWINT)) | (_BV(TWEN));
+        #if TIMEOUT
         waitingForComplete();
+        #else
+        while (!(TWCR & (_BV(TWINT))));
+        #endif
         if((TWSR & STATUS_CODE_MASK) != MR_DATA_ACK)
             error(MR_DATA_ACK);
         rxBuffer[n] = TWDR;
@@ -187,7 +212,11 @@ void TWI::requestFrom(uint8_t slaveAddress, uint8_t num, bool stop, bool repeatS
      
     //last byte, no TWEA (generate NACK)
     TWCR = (_BV(TWINT)) | (_BV(TWEN));
+    #if TIMEOUT
     waitingForComplete();
+    #else
+    while (!(TWCR & (_BV(TWINT))));
+    #endif
     if((TWSR & STATUS_CODE_MASK) != MR_DATA_NACK)
         error(MR_DATA_NACK);
     rxBuffer[num-1] = TWDR;
@@ -218,7 +247,11 @@ void TWI::requestFrom(uint8_t slaveAddress, uint8_t num, bool stop, int & outSid
 
     for(uint8_t n=0;n<num-1;n++){
         TWCR = (_BV(TWEA)) | (_BV(TWINT)) | (_BV(TWEN));
+        #if TIMEOUT
         waitingForComplete();
+        #else
+        while (!(TWCR & (_BV(TWINT))));
+        #endif
         if((TWSR & STATUS_CODE_MASK) != MR_DATA_ACK)
             error(MR_DATA_ACK);
         outSideBuffer[outSideBufferIndex++] = TWDR;
@@ -226,7 +259,11 @@ void TWI::requestFrom(uint8_t slaveAddress, uint8_t num, bool stop, int & outSid
 
     //last byte, no TWEA (generate NACK)
     TWCR = (_BV(TWINT)) | (_BV(TWEN));
+    #if TIMEOUT
     waitingForComplete();
+    #else
+    while (!(TWCR & (_BV(TWINT))));
+    #endif
     if((TWSR & STATUS_CODE_MASK) != MR_DATA_NACK)
         error(MR_DATA_NACK);
     outSideBuffer[outSideBufferIndex++] = TWDR;
@@ -350,14 +387,22 @@ void TWI::receive(){
         //initialise the buffer
         rxBufferIndex = 0;
         rxBufferLength = 0;
+        #if TIMEOUT
         waitingForComplete();
+        #else
+        while (!(TWCR & (_BV(TWINT))));
+        #endif
 
         status = TWSR & STATUS_CODE_MASK;
         while(status == SR_PRE_AD_DATA_ACK || status == SR_PRE_GC_DATA_ACK){
             rxBuffer[rxBufferIndex++] = TWDR;
             rxBufferLength++;
             TWCR = (_BV(TWINT)) | (_BV(TWEN)) | (_BV(TWEA));
+            #if TIMEOUT
             waitingForComplete();
+            #else
+            while (!(TWCR & (_BV(TWINT))));
+            #endif
             status = TWSR & STATUS_CODE_MASK;
         }
 
